@@ -1,3 +1,4 @@
-
-#[cfg(target_family = "unix")]
-use cty::c_int as File_t;
+use std::ptr;
+pub mod c;
+pub use crate::c::ErrorT;
+pub use crate::c::file;
