@@ -5,3 +5,15 @@ edition = "2021"
 
 [dependencies]
 cty = "0.2.2"
+
+[features]
+default = [
+  "SSC_File_createSecret",
+  "SSC_getExecutablePath",
+  "SSC_getNumberProcessors"
+  ]
+# File
+SSC_File_createSecret = []
+# Process
+SSC_getExecutablePath = []
+SSC_getNumberProcessors = []
