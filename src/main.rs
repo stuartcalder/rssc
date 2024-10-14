@@ -2,7 +2,8 @@
 fn main() {
     use std::ffi::CString;
     use ssc::c;
-    use c::file;
+    use ssc::mmap;
+    use mmap::file;
 
     if file::IS_INT {
         println!("In this implementation, the files are integers.");
@@ -14,7 +15,7 @@ fn main() {
     println!("Prior to calling SSC_FilePath_create(), c_file was {c_file}");
     let path = CString::new("/ram/u/test.txt").unwrap();
     let err = unsafe {
-        c::SSC_FilePath_create(path.as_ptr() as *const cty::c_char, &mut c_file as *mut file::Type)
+        mmap::SSC_FilePath_create(path.as_ptr() as *const cty::c_char, &mut c_file as *mut file::Type)
     };
     println!("The c_file became {c_file}");
     println!("The path became {:?}", path);

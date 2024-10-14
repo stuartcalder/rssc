@@ -1,4 +1,4 @@
 use std::ptr;
+//pub mod c;
 pub mod c;
-pub use crate::c::Error;
-pub use crate::c::file;
+pub mod mmap;
