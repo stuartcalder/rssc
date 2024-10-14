@@ -17,3 +17,4 @@ SSC_File_createSecret = []
 # Process
 SSC_getExecutablePath = []
 SSC_getNumberProcessors = []
+Disable = []
