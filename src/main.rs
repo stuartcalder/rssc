@@ -2,12 +2,16 @@
 
 fn main() {
     use ssc::proc;
+    use ssc::mem;
 
     let result = proc::get_executable_path();
     match result {
         Ok(exe_path) => println!("The executable path was {:?}.", exe_path),
         Err(_)       => println!("Failed to obtain the executable path."),
     }
+
+    println!("The available system memory is {}", mem::get_available_system_memory().get_as::<{mem::MI}>());
+    println!("The total     system memory is {}", mem::get_total_system_memory().get_as::<{mem::MI}>());
 }
 
 #[cfg(feature = "Disable")]

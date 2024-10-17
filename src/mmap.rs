@@ -174,57 +174,57 @@ impl Drop for Map {
 #[link(name = "SSC")]
 extern "C" {
 /* File procedures */
-    pub fn SSC_FilePath_getSize(
+    fn SSC_FilePath_getSize(
         fpath: *const cty::c_char,
         storesize: *mut cty::size_t
     ) -> c::Error;
-    pub fn SSC_FilePath_exists(
+    fn SSC_FilePath_exists(
         fpath: *const cty::c_char
     ) -> bool;
-    pub fn SSC_FilePath_forceExistOrDie(
+    fn SSC_FilePath_forceExistOrDie(
         fpath: *const cty::c_char,
         control: bool
     ) -> ();
-    pub fn SSC_FilePath_open(
+    fn SSC_FilePath_open(
         fpath: *const cty::c_char,
         readonly: bool, 
         storefile: *mut file::Type
     ) -> c::Error;
-    pub fn SSC_FilePath_create(
+    fn SSC_FilePath_create(
         fpath: *const cty::c_char,
         storefile: *mut file::Type
     ) -> c::Error;
-    pub fn SSC_File_getSize(
+    fn SSC_File_getSize(
         file: file::Type,
         storesize: *mut cty::size_t
     ) -> c::Error;
     #[cfg(all(feature = "SSC_File_createSecret", target_os = "linux"))]
-    pub fn SSC_File_createSecret(file: file::Type) -> c::Error;
-    pub fn SSC_File_close(file: file::Type) -> c::Error;
-    pub fn SSC_File_setSize(
+    fn SSC_File_createSecret(file: file::Type) -> c::Error;
+    fn SSC_File_close(file: file::Type) -> c::Error;
+    fn SSC_File_setSize(
         file: file::Type,
         size: cty::size_t
     ) -> c::Error;
-    pub fn SSC_chdir(fpath: *const cty::c_char) -> c::Error;
+    fn SSC_chdir(fpath: *const cty::c_char) -> c::Error;
 /* MemMap procedures */
-    pub fn SSC_MemMap_init(
+    fn SSC_MemMap_init(
         map:      *mut Map,
         filepath: *const cty::c_char,
         size:     cty::size_t,
         flags:    c::BitFlag
     ) -> c::CodeError;
     #[cfg(feature = "Disable")]
-    pub fn SSC_MemMap_initOrDie(
+    fn SSC_MemMap_initOrDie(
         map:      *mut Map,
         filepath: *const cty::c_char,
         size:     cty::size_t,
         flags:    c::BitFlag
     ) -> ();
-    pub fn SSC_MemMap_map(
+    fn SSC_MemMap_map(
         map: *mut Map,
         readonly: bool
     ) -> c::Error;
-    pub fn SSC_MemMap_unmap(map: *mut Map)  -> ();
-    pub fn SSC_MemMap_sync(map: *const Map) -> c::Error;
-    pub fn SSC_MemMap_del(map: *mut Map)    -> ();
+    fn SSC_MemMap_unmap(map: *mut Map)  -> ();
+    fn SSC_MemMap_sync(map: *const Map) -> c::Error;
+    fn SSC_MemMap_del(map: *mut Map)    -> ();
 }

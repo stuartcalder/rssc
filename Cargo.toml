@@ -11,7 +11,9 @@ libc = "0.2"
 default = [
   "SSC_File_createSecret",
   "SSC_getExecutablePath",
-  "SSC_getNumberProcessors"
+  "SSC_getNumberProcessors",
+  "SSC_getTotalSystemMemory",
+  "SSC_getAvailableSystemMemory",
   ]
 # File
 SSC_File_createSecret = []
