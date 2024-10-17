@@ -167,7 +167,7 @@ impl Map {
 impl Drop for Map {
     /// When Dropped, check to see if the Map has been memory-mapped. If so call SSC_MemMap_del().
     fn drop(&mut self) {
-        self.nullify().unwrap();
+        self.nullify().expect("Failed to Drop Map!");
     }
 } // ~ impl Drop for Map
 

@@ -5,3 +5,5 @@ pub mod c;
 pub mod mmap;
 pub mod op;
 pub mod print;
+pub mod rand;
+pub mod proc;

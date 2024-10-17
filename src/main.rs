@@ -1,4 +1,16 @@
 #![cfg_attr(debug_assertions, allow(dead_code, unused_imports))] // Warn about this stuff on Release mode only.
+
+fn main() {
+    use ssc::proc;
+
+    let result = proc::get_executable_path();
+    match result {
+        Ok(exe_path) => println!("The executable path was {:?}.", exe_path),
+        Err(_)       => println!("Failed to obtain the executable path."),
+    }
+}
+
+#[cfg(feature = "Disable")]
 fn main() -> Result<(), std::process::ExitCode> {
     use std::ffi::CString;
     use ssc::c;

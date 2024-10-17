@@ -19,8 +19,6 @@ pub type BitFlag64 = cty::uint64_t;
 #[link(name = "SSC")]
 extern "C" {
 /* Process procedures */
-    #[cfg(feature = "SSC_getExecutablePath")]
-    pub fn SSC_getExecutablePath(exec_path_size: *mut cty::size_t) -> *mut cty::c_char;
     #[cfg(feature = "SSC_getNumberProcessors")]
     pub fn SSC_getNumberProcessors() -> cty::c_int;
 }
