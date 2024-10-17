@@ -18,4 +18,7 @@ SSC_File_createSecret = []
 # Process
 SSC_getExecutablePath = []
 SSC_getNumberProcessors = []
+# Memory
+SSC_getTotalSystemMemory = []
+SSC_getAvailableSystemMemory = []
 Disable = []
