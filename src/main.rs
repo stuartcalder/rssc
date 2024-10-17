@@ -1,5 +1,5 @@
-
-fn main() {
+#![cfg_attr(debug_assertions, allow(dead_code, unused_imports))] // Warn about this stuff on Release mode only.
+fn main() -> Result<(), std::process::ExitCode> {
     use std::ffi::CString;
     use ssc::c;
     use ssc::mmap;
@@ -21,6 +21,7 @@ fn main() {
         init_flag::ALLOW_SHRINK |
         init_flag::FORCE_EXIST
     );
+    use std::process::ExitCode;
     match map_result {
         Ok(mut m) => {
             m.get_slice().fill(0xffu8);
@@ -41,6 +42,8 @@ fn main() {
                 _                              => "Unaccounted for error!"
             };
             eprintln!("{msg}");
+            return Err(ExitCode::FAILURE)
         },
     }
+    Ok(())
 }

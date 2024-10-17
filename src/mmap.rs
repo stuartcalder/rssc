@@ -63,6 +63,22 @@ impl Map {
         }
     }
 
+    pub fn is_initialized(self: &Self) -> bool {
+        self.ptr != std::ptr::null_mut()
+    }
+
+    pub fn is_readonly(self: &Self) -> bool {
+        self.readonly
+    }
+
+    pub fn sync(self: &mut Self) -> Result<(), c::Error> {
+        let err = unsafe { SSC_MemMap_sync(self as *mut Self) };
+        match err {
+            0 => Ok(()),
+            _ => Err(err),
+        }
+    }
+
     /// Initialize an existing Memory Map. Nullify if it's already initialized.
     pub fn init(
         self:     &mut Self,
@@ -71,8 +87,12 @@ impl Map {
         flags:    c::BitFlag
     ) -> Result<(), c::CodeError>
     {
-        if self.ptr != std::ptr::null_mut() {
-            self.nullify();
+        if self.is_initialized() {
+            let err = self.nullify();
+            match err {
+                Err(_) => return Err(init_code::ERR_MAP), //TODO: Make me a more specific error? Why isn't C code handling this?
+                _      => (),
+            }
         }
         let code = unsafe {
             SSC_MemMap_init(
@@ -97,14 +117,26 @@ impl Map {
     {
         let mut m = Self::new_null();
         m.init(filepath, size, flags)?;
+        if flags & init_flag::READ_ONLY != 0 {
+            m.readonly = true;
+        }
         Ok(m)
     }
 
     /// Free Memory map's resources and nullify variables.
-    pub fn nullify(&mut self) {
-        if self.ptr != std::ptr::null_mut() {
+    pub fn nullify(&mut self) -> Result<(), c::Error> {
+        if self.is_initialized() {
+            if ! self.is_readonly() {
+                let err = unsafe {
+                    SSC_MemMap_sync(self as *const Self)
+                };
+                if err != 0 {
+                    return Err(err);
+                }
+            }
             unsafe { SSC_MemMap_del(self as *mut Self) };
         }
+        Ok(())
     }
 
     /// Return the (possibly) mapped memory as a mutable u8 pointer.
@@ -124,56 +156,75 @@ impl Map {
 
     /// Return a u8 slice representing the memory-mapped data.
     pub fn get_slice(&mut self) -> &mut [cty::uint8_t] {
-        if self.ptr == std::ptr::null_mut() {
-            &mut []
-        } else {
+        if self.is_initialized() {
             unsafe { std::slice::from_raw_parts_mut(self.get_ptr(), self.get_size()) }
+        } else {
+            &mut []
         }
     }
 
 } // ~ impl Map
 impl Drop for Map {
-    /// When Dropped, check to see if the Map has been memory- mapped. If so call SSC_MemMap_del().
+    /// When Dropped, check to see if the Map has been memory-mapped. If so call SSC_MemMap_del().
     fn drop(&mut self) {
-        self.nullify();
+        self.nullify().unwrap();
     }
 } // ~ impl Drop for Map
 
 #[link(name = "SSC")]
 extern "C" {
 /* File procedures */
-    pub fn SSC_File_getSize(file: file::Type, storesize: *mut cty::size_t) -> c::Error;
-    pub fn SSC_FilePath_getSize(fpath: *const cty::c_char, storesize: *mut cty::size_t) -> c::Error;
-    pub fn SSC_FilePath_exists(fpath: *const cty::c_char) -> bool;
-    pub fn SSC_FilePath_forceExistOrDie(fpath: *const cty::c_char, control: bool) -> ();
+    pub fn SSC_FilePath_getSize(
+        fpath: *const cty::c_char,
+        storesize: *mut cty::size_t
+    ) -> c::Error;
+    pub fn SSC_FilePath_exists(
+        fpath: *const cty::c_char
+    ) -> bool;
+    pub fn SSC_FilePath_forceExistOrDie(
+        fpath: *const cty::c_char,
+        control: bool
+    ) -> ();
     pub fn SSC_FilePath_open(
         fpath: *const cty::c_char,
         readonly: bool, 
-        storefile: *mut file::Type) -> c::Error;
+        storefile: *mut file::Type
+    ) -> c::Error;
     pub fn SSC_FilePath_create(
         fpath: *const cty::c_char,
-        storefile: *mut file::Type) -> c::Error;
+        storefile: *mut file::Type
+    ) -> c::Error;
+    pub fn SSC_File_getSize(
+        file: file::Type,
+        storesize: *mut cty::size_t
+    ) -> c::Error;
     #[cfg(all(feature = "SSC_File_createSecret", target_os = "linux"))]
     pub fn SSC_File_createSecret(file: file::Type) -> c::Error;
     pub fn SSC_File_close(file: file::Type) -> c::Error;
-    pub fn SSC_File_setSize(file: file::Type, size: cty::size_t) -> c::Error;
+    pub fn SSC_File_setSize(
+        file: file::Type,
+        size: cty::size_t
+    ) -> c::Error;
     pub fn SSC_chdir(fpath: *const cty::c_char) -> c::Error;
 /* MemMap procedures */
     pub fn SSC_MemMap_init(
         map:      *mut Map,
         filepath: *const cty::c_char,
         size:     cty::size_t,
-        flags:    c::BitFlag) -> c::CodeError;
+        flags:    c::BitFlag
+    ) -> c::CodeError;
     #[cfg(feature = "Disable")]
     pub fn SSC_MemMap_initOrDie(
         map:      *mut Map,
         filepath: *const cty::c_char,
         size:     cty::size_t,
-        flags:    c::BitFlag) -> ();
+        flags:    c::BitFlag
+    ) -> ();
     pub fn SSC_MemMap_map(
         map: *mut Map,
-        readonly: bool) -> c::Error;
-    pub fn SSC_MemMap_unmap(map: *mut Map) -> ();
+        readonly: bool
+    ) -> c::Error;
+    pub fn SSC_MemMap_unmap(map: *mut Map)  -> ();
     pub fn SSC_MemMap_sync(map: *const Map) -> c::Error;
-    pub fn SSC_MemMap_del(map: *mut Map) -> ();
+    pub fn SSC_MemMap_del(map: *mut Map)    -> ();
 }
