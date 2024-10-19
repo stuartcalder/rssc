@@ -17,23 +17,16 @@ pub fn get_executable_path() -> Result<CString, ()> {
     let path = unsafe {
         SSC_getExecutablePath(&mut size as *mut cty::size_t)
     };
-    if path != std::ptr::null_mut() {
-        let path_cstr: &CStr = unsafe {
-            CStr::from_ptr(path as *mut cty::c_char)
-        };
-        let cstr = CString::from(path_cstr);
-        unsafe { libc::free(path as *mut cty::c_void) };
-        Ok(cstr)
-    } else {
-        Err(())
+    if path == std::ptr::null_mut() {
+        return Err(())
     }
-    //TODO
+    let cstr    = unsafe { CStr::from_ptr(path) };
+    let cstring = CString::from(cstr);
+    unsafe { libc::free(path as *mut cty::c_void) };
+    Ok(cstring)
 }
 
 #[cfg(feature = "SSC_getNumberProcessors")]
 pub fn get_number_processors() -> cty::c_int {
     unsafe { SSC_getNumberProcessors() }
 }
-
-
-//unsafe { std::slice::from_raw_parts_mut(self.get_ptr(), self.get_size()) }
