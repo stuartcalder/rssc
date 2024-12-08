@@ -19,8 +19,8 @@ impl Memory {
     pub fn get(&self) -> usize {
         self.value
     }
-    pub fn get_as<const Unit: usize>(&self) -> usize {
-        self.get() / Unit
+    pub fn get_as<const UNIT: usize>(&self) -> usize {
+        self.get() / UNIT
     }
 }
 impl Copy for Memory { }

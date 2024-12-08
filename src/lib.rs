@@ -8,3 +8,5 @@ pub mod print;
 pub mod rand;
 pub mod proc;
 pub mod mem;
+pub mod cli;
+pub mod sbox;

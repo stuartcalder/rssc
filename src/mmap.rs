@@ -1,12 +1,15 @@
 
 
 use crate::c;
+use std::ptr;
+use cty::*;
 
 pub mod file {
+    use super::*;
     #[cfg(target_family = "unix")]
-    pub type Type = cty::c_int;
+    pub type Type = c_int;
     #[cfg(target_family = "windows")]
-    pub type Type = *mut cty::c_void;
+    pub type Type = *mut c_void;
 
     pub const IS_INT: bool = cfg!(target_family = "unix");
     pub const IS_PTR: bool = cfg!(target_family = "windows");
@@ -41,8 +44,8 @@ pub mod init_code {
 
 #[repr(C)]
 pub struct Map {
-    ptr: *mut cty::uint8_t,
-    size: cty::size_t,
+    ptr: *mut uint8_t,
+    size: size_t,
     file: file::Type,
     #[cfg(target_family = "windows")]
     windows_filemap: file::Type,
@@ -54,7 +57,7 @@ impl Map {
     /// Return a default-initialized Memory Map.
     pub fn new_null() -> Self {
         Self {
-            ptr: std::ptr::null_mut::<cty::uint8_t>(),
+            ptr:  ptr::null_mut::<uint8_t>(),
             size: 0usize,
             file: file::NULL,
             #[cfg(target_family = "windows")]
@@ -64,7 +67,7 @@ impl Map {
     }
 
     pub fn is_initialized(self: &Self) -> bool {
-        self.ptr != std::ptr::null_mut()
+        ! self.ptr.is_null()
     }
 
     pub fn is_readonly(self: &Self) -> bool {
@@ -83,9 +86,8 @@ impl Map {
     pub fn init(
         self:     &mut Self,
         filepath: &CString,
-        size:     cty::size_t,
-        flags:    c::BitFlag
-    ) -> Result<(), c::CodeError>
+        size:     size_t,
+        flags:    c::BitFlag) -> Result<(), c::CodeError>
     {
         if self.is_initialized() {
             let err = self.nullify();
@@ -111,9 +113,8 @@ impl Map {
     /// Return an initialized, mapped Memory Map.
     pub fn new(
         filepath: &CString,
-        size:     cty::size_t,
-        flags:    c::BitFlag
-    ) -> Result<Self, c::CodeError>
+        size:     size_t,
+        flags:    c::BitFlag) -> Result<Self, c::CodeError>
     {
         let mut m = Self::new_null();
         m.init(filepath, size, flags)?;
@@ -140,12 +141,12 @@ impl Map {
     }
 
     /// Return the (possibly) mapped memory as a mutable u8 pointer.
-    pub fn get_ptr(&mut self) -> *mut cty::uint8_t {
+    pub fn get_ptr(&mut self) -> *mut uint8_t {
         self.ptr
     }
 
     /// Return the size of the (possibly) mapped file, or 0 if no file has been mapped.
-    pub fn get_size(&self) -> cty::size_t {
+    pub fn get_size(&self) -> size_t {
         self.size
     }
 
@@ -155,11 +156,11 @@ impl Map {
     }
 
     /// Return a u8 slice representing the memory-mapped data.
-    pub fn get_slice(&mut self) -> &mut [cty::uint8_t] {
+    pub fn get_slice(&mut self) -> Option<&mut [uint8_t]> {
         if self.is_initialized() {
-            unsafe { std::slice::from_raw_parts_mut(self.get_ptr(), self.get_size()) }
+            Some(unsafe {std::slice::from_raw_parts_mut(self.get_ptr(), self.get_size())})
         } else {
-            &mut []
+            None
         }
     }
 
@@ -175,49 +176,49 @@ impl Drop for Map {
 extern "C" {
 /* File procedures */
     fn SSC_FilePath_getSize(
-        fpath: *const cty::c_char,
-        storesize: *mut cty::size_t
+        fpath:     *const c_char,
+        storesize: *mut   size_t
     ) -> c::Error;
     fn SSC_FilePath_exists(
-        fpath: *const cty::c_char
+        fpath: *const c_char
     ) -> bool;
     fn SSC_FilePath_forceExistOrDie(
-        fpath: *const cty::c_char,
+        fpath:   *const c_char,
         control: bool
     ) -> ();
     fn SSC_FilePath_open(
-        fpath: *const cty::c_char,
-        readonly: bool, 
+        fpath:     *const c_char,
+        readonly:  bool, 
         storefile: *mut file::Type
     ) -> c::Error;
     fn SSC_FilePath_create(
-        fpath: *const cty::c_char,
+        fpath:     *const c_char,
         storefile: *mut file::Type
     ) -> c::Error;
     fn SSC_File_getSize(
-        file: file::Type,
-        storesize: *mut cty::size_t
+        file:      file::Type,
+        storesize: *mut size_t
     ) -> c::Error;
     #[cfg(all(feature = "SSC_File_createSecret", target_os = "linux"))]
     fn SSC_File_createSecret(file: file::Type) -> c::Error;
     fn SSC_File_close(file: file::Type) -> c::Error;
     fn SSC_File_setSize(
         file: file::Type,
-        size: cty::size_t
+        size: size_t
     ) -> c::Error;
-    fn SSC_chdir(fpath: *const cty::c_char) -> c::Error;
+    fn SSC_chdir(fpath: *const c_char) -> c::Error;
 /* MemMap procedures */
     fn SSC_MemMap_init(
         map:      *mut Map,
-        filepath: *const cty::c_char,
-        size:     cty::size_t,
+        filepath: *const c_char,
+        size:     size_t,
         flags:    c::BitFlag
     ) -> c::CodeError;
     #[cfg(feature = "Disable")]
     fn SSC_MemMap_initOrDie(
         map:      *mut Map,
-        filepath: *const cty::c_char,
-        size:     cty::size_t,
+        filepath: *const c_char,
+        size:     size_t,
         flags:    c::BitFlag
     ) -> ();
     fn SSC_MemMap_map(

@@ -1,3 +1,5 @@
+use cty::{c_uint,uint8_t,uint16_t,uint32_t,uint64_t};
+use cty::{c_int,int32_t,int64_t};
 pub type Error      = cty::c_int;
 
 pub type BitError   = cty::c_uint;

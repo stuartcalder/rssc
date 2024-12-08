@@ -7,7 +7,7 @@ extern "C" {
     ) -> ();
 }
 
-fn get_entropy(bytes: &mut [u8]) -> () {
+pub fn get_entropy(bytes: &mut [u8]) -> () {
     unsafe {
         SSC_getEntropy(
             bytes as *mut _ as *mut cty::c_void,
