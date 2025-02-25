@@ -1,22 +1,22 @@
 pub use cty::{c_void, size_t};
 
 #[link(name = "SSC")]
-unsafe extern "C" {
+extern "C" {
 /* Memory procedures. */
-    pub unsafe fn SSC_constTimeMemDiff(
+    pub fn SSC_constTimeMemDiff(
         mem_0: *const c_void,
         mem_1: *const c_void,
         size:  size_t
     ) -> size_t;
-    pub unsafe fn SSC_isZero(
+    pub fn SSC_isZero(
         mem: *const c_void,
         size: size_t
     ) -> bool;
-    pub unsafe fn SSC_constTimeIsZero(
+    pub fn SSC_constTimeIsZero(
         mem: *const c_void,
         size: size_t
     ) -> bool;
-    pub unsafe fn SSC_secureZero(
+    pub fn SSC_secureZero(
         mem: *mut c_void,
         size: size_t
     ) -> ();
