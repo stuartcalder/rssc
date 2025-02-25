@@ -1,9 +1,9 @@
 
 #[link(name = "SSC")]
 extern "C" {
-    #[cfg(feature = "SSC_getTotalSystemMemory")]
+    #[cfg(all(feature = "SSC_getTotalSystemMemory", any(target_os = "linux", target_os = "windows")))]
     fn SSC_getTotalSystemMemory() -> cty::size_t;
-    #[cfg(feature = "SSC_getAvailableSystemMemory")]
+    #[cfg(all(feature = "SSC_getAvailableSystemMemory", any(target_family = "unix", target_os = "windows")))]
     fn SSC_getAvailableSystemMemory() -> cty::size_t;
 }
 
@@ -30,13 +30,13 @@ impl Clone for Memory {
     }
 }
 
-#[cfg(feature = "SSC_getTotalSystemMemory")]
+#[cfg(all(feature = "SSC_getTotalSystemMemory", any(target_os = "linux", target_os = "windows")))]
 pub fn get_total_system_memory() -> Memory {
     let v = unsafe { SSC_getTotalSystemMemory()};
     Memory { value: v }
 }
 
-#[cfg(feature = "SSC_getAvailableSystemMemory")]
+#[cfg(all(feature = "SSC_getAvailableSystemMemory", any(target_family = "unix", target_os = "windows")))]
 pub fn get_available_system_memory() -> Memory {
     let v = unsafe { SSC_getAvailableSystemMemory() };
     Memory { value: v }

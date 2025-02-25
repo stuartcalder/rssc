@@ -3,15 +3,15 @@ use libc;
 
 #[link(name = "SSC")]
 extern "C" {
-    #[cfg(feature = "SSC_getExecutablePath")]
+    #[cfg(all(feature = "SSC_getExecutablePath", any(target_os = "linux", target_os = "windows")))]
     fn SSC_getExecutablePath(
         store_path_size: *mut cty::size_t
     ) -> *mut cty::c_char;
-    #[cfg(feature = "SSC_getNumberProcessors")]
+    #[cfg(all(feature = "SSC_getNumberProcessors", any(target_os = "linux", target_os = "windows")))]
     fn SSC_getNumberProcessors() -> cty::c_int;
 }
 
-#[cfg(feature = "SSC_getExecutablePath")]
+#[cfg(all(feature = "SSC_getExecutablePath", any(target_os = "linux", target_os = "windows")))]
 pub fn get_executable_path() -> Result<CString, ()> {
     let mut size = 0usize;
     let path = unsafe {
@@ -26,7 +26,7 @@ pub fn get_executable_path() -> Result<CString, ()> {
     Ok(cstring)
 }
 
-#[cfg(feature = "SSC_getNumberProcessors")]
+#[cfg(all(feature = "SSC_getNumberProcessors", any(target_os = "linux", target_os = "windows")))]
 pub fn get_number_processors() -> cty::c_int {
     unsafe { SSC_getNumberProcessors() }
 }
