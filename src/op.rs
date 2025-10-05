@@ -39,11 +39,22 @@ extern "C" {
     ) -> ();
 }
 
-pub fn secure_zero(bytes: &mut [u8]) {
+trait Unsigned {}
+
+impl Unsigned for u8 {}
+impl Unsigned for u16 {}
+impl Unsigned for u32 {}
+impl Unsigned for u64 {}
+impl Unsigned for u128 {}
+impl Unsigned for usize {}
+
+pub fn secure_zero<T>(bytes: &mut [T])
+where T: Unsigned
+{
     unsafe {
         SSC_secureZero(
             bytes as *mut _ as *mut c_void,
-            bytes.len()
+            bytes.len() * std::mem::size_of::<T>()
         )
     }
 }
