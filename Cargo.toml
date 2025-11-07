@@ -14,6 +14,7 @@ path = "src/lib.rs"
 [features]
 default = [
   "SSC_File_createSecret",
+  "SSC_MemMap_initSecret",
   "SSC_getExecutablePath",
   "SSC_getNumberProcessors",
   "SSC_getTotalSystemMemory",
@@ -21,6 +22,8 @@ default = [
   ]
 # File
 SSC_File_createSecret = []
+# MemMap
+SSC_MemMap_initSecret = []
 # Process
 SSC_getExecutablePath = []
 SSC_getNumberProcessors = []

@@ -16,6 +16,7 @@
 */
 
 #![cfg_attr(debug_assertions, allow(dead_code, unused_imports))] // Warn about this stuff on Release mode only.
+#![allow(unused)]
 use std::ptr;
 //pub mod c;
 pub mod c;

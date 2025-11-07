@@ -35,9 +35,15 @@ pub type BitFlag16 = cty::uint16_t;
 pub type BitFlag32 = cty::uint32_t;
 pub type BitFlag64 = cty::uint64_t;
 
-#[link(name = "SSC")]
+macro_rules! declare {
+    () => {
+        /* Process procedures */
+        #[cfg(feature = "SSC_getNumberProcessors")]
+        pub fn SSC_getNumberProcessors() -> cty::c_int;
+    }
+}
+
+#[link(name = "SSC", kind = "dylib")]
 extern "C" {
-/* Process procedures */
-    #[cfg(feature = "SSC_getNumberProcessors")]
-    pub fn SSC_getNumberProcessors() -> cty::c_int;
+    declare!();
 }

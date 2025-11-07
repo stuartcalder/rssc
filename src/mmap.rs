@@ -19,6 +19,8 @@ use crate::c;
 use std::ptr;
 use cty::*;
 
+pub const HAS_INITSECRET: bool = cfg!(feature = "SSC_MemMap_initSecret") && cfg!(target_os = "linux");
+
 pub mod file {
     use super::*;
     #[cfg(target_family = "unix")]
@@ -33,28 +35,38 @@ pub mod file {
     pub const NULL: Type = -1;
     #[cfg(target_family = "windows")]
     pub const NULL: Type = -1isize as Type;
+
+    pub const HAS_CREATESECRET: bool = cfg!(feature = "SSC_File_createSecret") && cfg!(target_os = "linux");
 }
 
+pub mod flag {
+    use crate::c::BitFlag8;
+    pub const READONLY:   BitFlag8 = 0x01u8;
+    pub const SECRET:     BitFlag8 = 0x02u8;
+}
 pub mod init_flag {
-    use crate::c;
-    pub const READ_ONLY:       c::BitFlag = 0x01; /* Disallow writing to memory-map. */
-    pub const ALLOW_SHRINK:    c::BitFlag = 0x02; /* Allow shrinking the size of the mapped memory. */
-    pub const FORCE_EXIST:     c::BitFlag = 0x04; /* Force a file to NOT exist, unless ForceExistYes is on... */
-    pub const FORCE_EXIST_YES: c::BitFlag = 0x08; /* Force a file to exist, when @ForceExist is also on. */
+    use crate::c::BitFlag;
+    pub const READ_ONLY:       BitFlag = 0x01; /* Disallow writing to memory-map. */
+    pub const ALLOW_SHRINK:    BitFlag = 0x02; /* Allow shrinking the size of the mapped memory. */
+    pub const FORCE_EXIST:     BitFlag = 0x04; /* Force a file to NOT exist, unless ForceExistYes is on... */
+    pub const FORCE_EXIST_YES: BitFlag = 0x08; /* Force a file to exist, when @ForceExist is also on. */
 }
 pub mod init_code {
-    use crate::c;
-    pub const OK:                  c::CodeError =   0;
-    pub const ERR_FILE_EXIST_NO:   c::CodeError =  -1; /* Failure to force non-existence of a file. */
-    pub const ERR_FILE_EXIST_YES:  c::CodeError =  -2; /* Failure to force existence of a file. */
-    pub const ERR_READONLY:        c::CodeError =  -3; /* Failure to enforce read-only. */
-    pub const ERR_SHRINK:          c::CodeError =  -4; /* Attempted to shrink while disallowed */
-    pub const ERR_NO_SIZE:         c::CodeError =  -5; /* Size not provided. */
-    pub const ERR_OPEN_FILEPATH:   c::CodeError =  -6; /* Failed to open a filepath. */
-    pub const ERR_CREATE_FILEPATH: c::CodeError =  -7; /* Failed to create a file at a filepath. */
-    pub const ERR_GET_FILE_SIZE:   c::CodeError =  -8; /* Failed to get a file size. */
-    pub const ERR_SET_FILE_SIZE:   c::CodeError =  -9; /* Failed to set a file size. */
-    pub const ERR_MAP:             c::CodeError = -10; /* Failed to map a file into memory. */
+    use crate::c::CodeError;
+    pub const OK:                  CodeError =   0;
+    pub const ERR_FILE_EXIST_NO:   CodeError =  -1; /* Failure to force non-existence of a file. */
+    pub const ERR_FILE_EXIST_YES:  CodeError =  -2; /* Failure to force existence of a file. */
+    pub const ERR_READONLY:        CodeError =  -3; /* Failure to enforce read-only. */
+    pub const ERR_SHRINK:          CodeError =  -4; /* Attempted to shrink while disallowed */
+    pub const ERR_NO_SIZE:         CodeError =  -5; /* Size not provided. */
+    pub const ERR_OPEN_FILEPATH:   CodeError =  -6; /* Failed to open a filepath. */
+    pub const ERR_CREATE_FILEPATH: CodeError =  -7; /* Failed to create a file at a filepath. */
+    pub const ERR_GET_FILE_SIZE:   CodeError =  -8; /* Failed to get a file size. */
+    pub const ERR_SET_FILE_SIZE:   CodeError =  -9; /* Failed to set a file size. */
+    pub const ERR_MAP:             CodeError = -10; /* Failed to map a file into memory. */
+    pub const ERR_SECRET:          CodeError = -11; /* Failed to initialize a secret map. */
+    /* Error codes underneath this comment are Rust-specific, and never emitted by the C code. */
+    pub const ERR_NULLIFY:         CodeError = -12; /* Failed to nullify prior to initialization. */
 }
 
 #[repr(C)]
@@ -64,7 +76,7 @@ pub struct Map {
     file: file::Type,
     #[cfg(target_family = "windows")]
     windows_filemap: file::Type,
-    readonly: bool,
+    flags: c::BitFlag8,
 }
 
 use std::ffi::CString;
@@ -77,38 +89,48 @@ impl Map {
             file: file::NULL,
             #[cfg(target_family = "windows")]
             windows_filemap: file::NULL,
-            readonly: false,
+            flags: 0u8,
         }
     }
 
-    pub fn is_initialized(self: &Self) -> bool {
+    pub fn is_initialized(&self) -> bool {
         ! self.ptr.is_null()
     }
 
-    pub fn is_readonly(self: &Self) -> bool {
-        self.readonly
+    pub fn is_readonly(&self) -> bool {
+        (self.flags & flag::READONLY) != 0u8
     }
 
-    pub fn sync(self: &mut Self) -> Result<(), c::Error> {
+    pub fn supports_secret() -> bool {
+        const HARD_SUPPORT: bool = cfg!(feature = "SSC_MemMap_initSecret") && cfg!(target_os = "linux");
+        if !HARD_SUPPORT {
+            return false;
+        }
+        unsafe { SSC_File_createSecretIsAvailable() }
+    }
+
+    pub fn is_secret(&self) -> bool {
+        (self.flags & flag::SECRET) != 0u8
+    }
+
+    pub fn sync(&mut self) -> Result<(), ()> {
         let err = unsafe { SSC_MemMap_sync(self as *mut Self) };
         match err {
             0 => Ok(()),
-            _ => Err(err),
+            _ => Err(()),
         }
     }
 
     /// Initialize an existing Memory Map. Nullify if it's already initialized.
     pub fn init(
-        self:     &mut Self,
+        &mut self,
         filepath: &CString,
         size:     size_t,
         flags:    c::BitFlag) -> Result<(), c::CodeError>
     {
         if self.is_initialized() {
-            let err = self.nullify();
-            match err {
-                Err(_) => return Err(init_code::ERR_MAP), //TODO: Make me a more specific error? Why isn't C code handling this?
-                _      => (),
+            if self.nullify().is_err() {
+                return Err(init_code::ERR_NULLIFY);
             }
         }
         let code = unsafe {
@@ -117,6 +139,29 @@ impl Map {
                 filepath.as_ptr(),
                 size,
                 flags
+            )
+        };
+        match code {
+            init_code::OK => Ok(()),
+            _             => Err(code)
+        }
+    }
+
+    ///TODO
+    #[cfg(all(feature = "SSC_MemMap_initSecret", target_os = "linux"))]
+    pub fn init_secret(
+        &mut self,
+        size: size_t) -> Result<(), c::CodeError>
+    {
+        if self.is_initialized() {
+            if self.nullify().is_err() {
+                return Err(init_code::ERR_NULLIFY);
+            }
+        }
+        let code = unsafe {
+            SSC_MemMap_initSecret(
+                self as *mut Self,
+                size
             )
         };
         match code {
@@ -134,25 +179,43 @@ impl Map {
         let mut m = Self::new_null();
         m.init(filepath, size, flags)?;
         if flags & init_flag::READ_ONLY != 0 {
-            m.readonly = true;
+            m.flags |= flag::READONLY;
         }
         Ok(m)
     }
 
+    ///TODO
+    #[cfg(all(feature = "SSC_MemMap_initSecret", target_os = "linux"))]
+    pub fn new_secret(size: size_t) -> Result<Self, c::CodeError>
+    {
+        let mut m = Self::new_null();
+        m.init_secret(size)?;
+        Ok(m)
+    }
+
     /// Free Memory map's resources and nullify variables.
-    pub fn nullify(&mut self) -> Result<(), c::Error> {
+    pub fn nullify(&mut self) -> Result<(), ()> {
         if self.is_initialized() {
             if ! self.is_readonly() {
                 let err = unsafe {
                     SSC_MemMap_sync(self as *const Self)
                 };
                 if err != 0 {
-                    return Err(err);
+                    return Err(());
                 }
             }
             unsafe { SSC_MemMap_del(self as *mut Self) };
         }
         Ok(())
+    }
+
+    ///TODO
+    pub fn resize(&mut self, size: size_t) -> Result<(), ()> {
+        let err = unsafe { SSC_MemMap_resize(self as *mut Self, size) };
+        match err {
+            0 => Ok(()),
+            _ => Err(()),
+        }
     }
 
     /// Return the (possibly) mapped memory as a mutable u8 pointer.
@@ -165,9 +228,9 @@ impl Map {
         self.size
     }
 
-    /// Return whether we are allowed to write to the mapped memory of the Memory Map.
-    pub fn get_readonly(&self) -> bool {
-        self.readonly
+    /// Return the 8 bits that serve as the flags.
+    pub fn get_flags(&self) -> c::BitFlag8 {
+        self.flags
     }
 
     /// Return a u8 slice representing the memory-mapped data.
@@ -216,6 +279,7 @@ extern "C" {
     ) -> c::Error;
     #[cfg(all(feature = "SSC_File_createSecret", target_os = "linux"))]
     fn SSC_File_createSecret(file: file::Type) -> c::Error;
+    fn SSC_File_createSecretIsAvailable() -> bool;
     fn SSC_File_close(file: file::Type) -> c::Error;
     fn SSC_File_setSize(
         file: file::Type,
@@ -243,4 +307,7 @@ extern "C" {
     fn SSC_MemMap_unmap(map: *mut Map)  -> ();
     fn SSC_MemMap_sync(map: *const Map) -> c::Error;
     fn SSC_MemMap_del(map: *mut Map)    -> ();
+    #[cfg(all(feature = "SSC_MemMap_initSecret", target_os = "linux"))]
+    fn SSC_MemMap_initSecret(map: *mut Map, size: size_t) -> c::CodeError;
+    fn SSC_MemMap_resize(map: *mut Map, size: size_t) -> c::Error;
 }

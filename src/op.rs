@@ -39,7 +39,7 @@ extern "C" {
     ) -> ();
 }
 
-trait Unsigned {}
+pub trait Unsigned {}
 
 impl Unsigned for u8 {}
 impl Unsigned for u16 {}
