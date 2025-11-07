@@ -41,7 +41,7 @@ pub mod file {
 
 pub mod flag {
     use crate::c::BitFlag8;
-    pub const READONLY:   BitFlag8 = 0x01u8;
+    pub const READ_ONLY:  BitFlag8 = 0x01u8;
     pub const SECRET:     BitFlag8 = 0x02u8;
 }
 pub mod init_flag {
@@ -53,20 +53,20 @@ pub mod init_flag {
 }
 pub mod init_code {
     use crate::c::CodeError;
-    pub const OK:                  CodeError =   0;
-    pub const ERR_FILE_EXIST_NO:   CodeError =  -1; /* Failure to force non-existence of a file. */
-    pub const ERR_FILE_EXIST_YES:  CodeError =  -2; /* Failure to force existence of a file. */
-    pub const ERR_READONLY:        CodeError =  -3; /* Failure to enforce read-only. */
-    pub const ERR_SHRINK:          CodeError =  -4; /* Attempted to shrink while disallowed */
-    pub const ERR_NO_SIZE:         CodeError =  -5; /* Size not provided. */
-    pub const ERR_OPEN_FILEPATH:   CodeError =  -6; /* Failed to open a filepath. */
-    pub const ERR_CREATE_FILEPATH: CodeError =  -7; /* Failed to create a file at a filepath. */
-    pub const ERR_GET_FILE_SIZE:   CodeError =  -8; /* Failed to get a file size. */
-    pub const ERR_SET_FILE_SIZE:   CodeError =  -9; /* Failed to set a file size. */
-    pub const ERR_MAP:             CodeError = -10; /* Failed to map a file into memory. */
-    pub const ERR_SECRET:          CodeError = -11; /* Failed to initialize a secret map. */
+    pub const OK:                   CodeError =   0;
+    pub const ERR_FILE_EXIST_NO:    CodeError =  -1; /* Failure to force non-existence of a file. */
+    pub const ERR_FILE_EXIST_YES:   CodeError =  -2; /* Failure to force existence of a file. */
+    pub const ERR_READ_ONLY:        CodeError =  -3; /* Failure to enforce read-only. */
+    pub const ERR_SHRINK:           CodeError =  -4; /* Attempted to shrink while disallowed */
+    pub const ERR_NO_SIZE:          CodeError =  -5; /* Size not provided. */
+    pub const ERR_OPEN_FILEPATH:    CodeError =  -6; /* Failed to open a filepath. */
+    pub const ERR_CREATE_FILEPATH:  CodeError =  -7; /* Failed to create a file at a filepath. */
+    pub const ERR_GET_FILE_SIZE:    CodeError =  -8; /* Failed to get a file size. */
+    pub const ERR_SET_FILE_SIZE:    CodeError =  -9; /* Failed to set a file size. */
+    pub const ERR_MAP:              CodeError = -10; /* Failed to map a file into memory. */
+    pub const ERR_SECRET:           CodeError = -11; /* Failed to initialize a secret map. */
     /* Error codes underneath this comment are Rust-specific, and never emitted by the C code. */
-    pub const ERR_NULLIFY:         CodeError = -12; /* Failed to nullify prior to initialization. */
+    pub const ERR_NULLIFY:          CodeError = -12; /* Failed to nullify prior to initialization. */
 }
 
 #[repr(C)]
@@ -93,14 +93,17 @@ impl Map {
         }
     }
 
+    /// Is the Memory Map already mapped?
     pub fn is_initialized(&self) -> bool {
         ! self.ptr.is_null()
     }
 
+    /// Is the Memory Map marked read-only? i.e. no write operations.
     pub fn is_readonly(&self) -> bool {
-        (self.flags & flag::READONLY) != 0u8
+        (self.flags & flag::READ_ONLY) != 0u8
     }
 
+    /// Does this implementation support creating Secret Maps?
     pub fn supports_secret() -> bool {
         const HARD_SUPPORT: bool = cfg!(feature = "SSC_MemMap_initSecret") && cfg!(target_os = "linux");
         if !HARD_SUPPORT {
@@ -109,10 +112,12 @@ impl Map {
         unsafe { SSC_File_createSecretIsAvailable() }
     }
 
+    /// Is this Memory Map a Secret Map?
     pub fn is_secret(&self) -> bool {
         (self.flags & flag::SECRET) != 0u8
     }
 
+    /// Synchronize the Memory Map's data with the filesystem.
     pub fn sync(&mut self) -> Result<(), ()> {
         let err = unsafe { SSC_MemMap_sync(self as *mut Self) };
         match err {
@@ -179,7 +184,7 @@ impl Map {
         let mut m = Self::new_null();
         m.init(filepath, size, flags)?;
         if flags & init_flag::READ_ONLY != 0 {
-            m.flags |= flag::READONLY;
+            m.flags |= flag::READ_ONLY;
         }
         Ok(m)
     }
@@ -209,7 +214,7 @@ impl Map {
         Ok(())
     }
 
-    ///TODO
+    /// Increase or decrease the size of the Memory Map.
     pub fn resize(&mut self, size: size_t) -> Result<(), ()> {
         let err = unsafe { SSC_MemMap_resize(self as *mut Self, size) };
         match err {
@@ -233,7 +238,7 @@ impl Map {
         self.flags
     }
 
-    /// Return a u8 slice representing the memory-mapped data.
+    /// Return a reference to a u8 slice representing the memory-mapped data.
     pub fn get_slice(&mut self) -> Option<&mut [uint8_t]> {
         if self.is_initialized() {
             Some(unsafe {std::slice::from_raw_parts_mut(self.get_ptr(), self.get_size())})

@@ -48,6 +48,7 @@ impl Unsigned for u64 {}
 impl Unsigned for u128 {}
 impl Unsigned for usize {}
 
+/// Securely zero over all the bytes underlying the slice @bytes.
 pub fn secure_zero<T>(bytes: &mut [T])
 where T: Unsigned
 {
@@ -55,6 +56,37 @@ where T: Unsigned
         SSC_secureZero(
             bytes as *mut _ as *mut c_void,
             bytes.len() * std::mem::size_of::<T>()
+        )
+    }
+}
+
+/// Return the number of bytes differing between @m0 and @m1.
+pub fn const_time_mem_diff<T>(
+    m0:   &[T],
+    m1:   &[T]) -> Result<size_t, ()>
+where T: Unsigned
+{
+    if m0.len() != m1.len() {
+        return Err(());
+    }
+    let s = unsafe {
+        SSC_constTimeMemDiff(
+            m0 as *const _ as *const c_void,
+            m1 as *const _ as *const c_void,
+            m0.len() * std::mem::size_of::<T>()
+        )
+    };
+    Ok(s)
+}
+
+/// Are the bytes of @mem all zero? True/False.
+pub fn const_time_is_zero<T>(mem: &[T]) -> bool
+where T: Unsigned
+{
+    unsafe {
+        SSC_constTimeIsZero(
+            mem as *const _ as *const c_void,
+            mem.len() * std::mem::size_of::<T>()
         )
     }
 }
