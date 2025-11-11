@@ -79,10 +79,8 @@ pub struct Map {
     flags: c::BitFlag8,
 }
 
-use std::ffi::CString;
-impl Map {
-    /// Return a default-initialized Memory Map.
-    pub fn new_null() -> Self {
+impl Default for Map {
+    fn default() -> Self {
         Self {
             ptr:  ptr::null_mut::<uint8_t>(),
             size: 0usize,
@@ -91,6 +89,21 @@ impl Map {
             windows_filemap: file::NULL,
             flags: 0u8,
         }
+    }
+}
+
+impl Drop for Map {
+    /// When Dropped, check to see if the Map has been memory-mapped. If so call SSC_MemMap_del().
+    fn drop(&mut self) {
+        self.nullify().expect("Failed to Drop Map!");
+    }
+}
+
+use std::ffi::CString;
+impl Map {
+    /// Return a default-initialized Memory Map.
+    pub fn new_null() -> Self {
+        Map::default()
     }
 
     /// Is the Memory Map already mapped?
@@ -248,12 +261,6 @@ impl Map {
     }
 
 } // ~ impl Map
-impl Drop for Map {
-    /// When Dropped, check to see if the Map has been memory-mapped. If so call SSC_MemMap_del().
-    fn drop(&mut self) {
-        self.nullify().expect("Failed to Drop Map!");
-    }
-} // ~ impl Drop for Map
 
 #[link(name = "SSC")]
 extern "C" {
@@ -290,7 +297,6 @@ extern "C" {
         file: file::Type,
         size: size_t
     ) -> c::Error;
-    fn SSC_chdir(fpath: *const c_char) -> c::Error;
 /* MemMap procedures */
     fn SSC_MemMap_init(
         map:      *mut Map,
@@ -315,4 +321,6 @@ extern "C" {
     #[cfg(all(feature = "SSC_MemMap_initSecret", target_os = "linux"))]
     fn SSC_MemMap_initSecret(map: *mut Map, size: size_t) -> c::CodeError;
     fn SSC_MemMap_resize(map: *mut Map, size: size_t) -> c::Error;
+/* Misc procedures */
+    fn SSC_chdir(fpath: *const c_char) -> c::Error;
 }
