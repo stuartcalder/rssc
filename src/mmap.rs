@@ -118,8 +118,7 @@ impl Map {
 
     /// Does this implementation support creating Secret Maps?
     pub fn supports_secret() -> bool {
-        const HARD_SUPPORT: bool = cfg!(feature = "SSC_MemMap_initSecret") && cfg!(target_os = "linux");
-        if !HARD_SUPPORT {
+        if !HAS_INITSECRET {
             return false;
         }
         unsafe { SSC_File_createSecretIsAvailable() }
@@ -224,6 +223,7 @@ impl Map {
             }
             unsafe { SSC_MemMap_del(self as *mut Self) };
         }
+        *self = Self::default();
         Ok(())
     }
 
