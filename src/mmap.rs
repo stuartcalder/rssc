@@ -37,6 +37,7 @@ pub mod file {
     pub const NULL: Type = -1isize as Type;
 
     pub const HAS_CREATESECRET: bool = cfg!(feature = "SSC_File_createSecret") && cfg!(target_os = "linux");
+    pub const HAS_WINDOWS_FILEMAP: bool = cfg!(target_family = "windows");
 }
 
 pub mod flag {
@@ -53,20 +54,21 @@ pub mod init_flag {
 }
 pub mod init_code {
     use crate::c::CodeError;
-    pub const OK:                   CodeError =   0;
-    pub const ERR_FILE_EXIST_NO:    CodeError =  -1; /* Failure to force non-existence of a file. */
-    pub const ERR_FILE_EXIST_YES:   CodeError =  -2; /* Failure to force existence of a file. */
-    pub const ERR_READ_ONLY:        CodeError =  -3; /* Failure to enforce read-only. */
-    pub const ERR_SHRINK:           CodeError =  -4; /* Attempted to shrink while disallowed */
-    pub const ERR_NO_SIZE:          CodeError =  -5; /* Size not provided. */
-    pub const ERR_OPEN_FILEPATH:    CodeError =  -6; /* Failed to open a filepath. */
-    pub const ERR_CREATE_FILEPATH:  CodeError =  -7; /* Failed to create a file at a filepath. */
-    pub const ERR_GET_FILE_SIZE:    CodeError =  -8; /* Failed to get a file size. */
-    pub const ERR_SET_FILE_SIZE:    CodeError =  -9; /* Failed to set a file size. */
-    pub const ERR_MAP:              CodeError = -10; /* Failed to map a file into memory. */
-    pub const ERR_SECRET:           CodeError = -11; /* Failed to initialize a secret map. */
+    pub const OK:                     CodeError =   0;
+    pub const ERR_FILE_EXIST_NO:      CodeError =  -1; /* Failure to force non-existence of a file. */
+    pub const ERR_FILE_EXIST_YES:     CodeError =  -2; /* Failure to force existence of a file. */
+    pub const ERR_READ_ONLY:          CodeError =  -3; /* Failure to enforce read-only. */
+    pub const ERR_SHRINK:             CodeError =  -4; /* Attempted to shrink while disallowed */
+    pub const ERR_NO_SIZE:            CodeError =  -5; /* Size not provided. */
+    pub const ERR_OPEN_FILEPATH:      CodeError =  -6; /* Failed to open a filepath. */
+    pub const ERR_CREATE_FILEPATH:    CodeError =  -7; /* Failed to create a file at a filepath. */
+    pub const ERR_GET_FILE_SIZE:      CodeError =  -8; /* Failed to get a file size. */
+    pub const ERR_SET_FILE_SIZE:      CodeError =  -9; /* Failed to set a file size. */
+    pub const ERR_MAP:                CodeError = -10; /* Failed to map a file into memory. */
+    pub const ERR_SECRET:             CodeError = -11; /* Failed to initialize a secret map. */
     /* Error codes underneath this comment are Rust-specific, and never emitted by the C code. */
-    pub const ERR_NULLIFY:          CodeError = -12; /* Failed to nullify prior to initialization. */
+    pub const ERR_NULLIFY:            CodeError = -12; /* Failed to nullify prior to initialization. */
+    pub const ERR_SECRET_UNAVAILABLE: CodeError = -13; /* Secret MemMaps are unavailable on this build. */
 }
 
 #[repr(C)]
@@ -118,10 +120,11 @@ impl Map {
 
     /// Does this implementation support creating Secret Maps?
     pub fn supports_secret() -> bool {
-        if !HAS_INITSECRET {
-            return false;
+        if HAS_INITSECRET {
+            unsafe { SSC_File_createSecretIsAvailable() }
+        } else {
+            false
         }
-        unsafe { SSC_File_createSecretIsAvailable() }
     }
 
     /// Is this Memory Map a Secret Map?
@@ -165,25 +168,32 @@ impl Map {
     }
 
     ///TODO
-    #[cfg(all(feature = "SSC_MemMap_initSecret", target_os = "linux"))]
+    #[allow(unused_parameters)]
     pub fn init_secret(
         &mut self,
         size: size_t) -> Result<(), c::CodeError>
     {
-        if self.is_initialized() {
-            if self.nullify().is_err() {
-                return Err(init_code::ERR_NULLIFY);
+        #[cfg(all(feature = "SSC_MemMap_initSecret", target_os = "linux"))]
+        {
+            if self.is_initialized() {
+                if self.nullify().is_err() {
+                    return Err(init_code::ERR_NULLIFY);
+                }
+            }
+            let code = unsafe {
+                SSC_MemMap_initSecret(
+                    self as *mut Self,
+                    size
+                )
+            };
+            match code {
+                init_code::OK => Ok(()),
+                _             => Err(code)
             }
         }
-        let code = unsafe {
-            SSC_MemMap_initSecret(
-                self as *mut Self,
-                size
-            )
-        };
-        match code {
-            init_code::OK => Ok(()),
-            _             => Err(code)
+        #[cfg(not(all(feature = "SSC_MemMap_initSecret", target_os = "linux")))]
+        {
+            Err(ERR_SECRET_UNAVAILABLE)
         }
     }
 
@@ -202,12 +212,19 @@ impl Map {
     }
 
     ///TODO
-    #[cfg(all(feature = "SSC_MemMap_initSecret", target_os = "linux"))]
+    #[allow(unused_parameters)]
     pub fn new_secret(size: size_t) -> Result<Self, c::CodeError>
     {
-        let mut m = Self::new_null();
-        m.init_secret(size)?;
-        Ok(m)
+        #[cfg(all(feature = "SSC_MemMap_initSecret", target_os = "linux"))]
+        {
+            let mut m = Self::new_null();
+            m.init_secret(size)?;
+            Ok(m)
+        }
+        #[cfg(not(all(feature = "SSC_MemMap_initSecret", target_os = "linux")))]
+        {
+            Err(ERR_SECRET_UNAVAILABLE)
+        }
     }
 
     /// Free Memory map's resources and nullify variables.

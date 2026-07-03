@@ -39,18 +39,34 @@ extern "C" {
     ) -> ();
 }
 
+pub trait Integer {}
+
+impl Integer for i8    {}
+impl Integer for i16   {}
+impl Integer for i32   {}
+impl Integer for i64   {}
+impl Integer for i128  {}
+impl Integer for isize {}
+
+impl Integer for u8    {}
+impl Integer for u16   {}
+impl Integer for u32   {}
+impl Integer for u64   {}
+impl Integer for u128  {}
+impl Integer for usize {}
+
 pub trait Unsigned {}
 
-impl Unsigned for u8 {}
-impl Unsigned for u16 {}
-impl Unsigned for u32 {}
-impl Unsigned for u64 {}
-impl Unsigned for u128 {}
+impl Unsigned for u8    {}
+impl Unsigned for u16   {}
+impl Unsigned for u32   {}
+impl Unsigned for u64   {}
+impl Unsigned for u128  {}
 impl Unsigned for usize {}
 
 /// Securely zero over all the bytes underlying the slice @bytes.
 pub fn secure_zero<T>(bytes: &mut [T])
-where T: Unsigned
+where T: Integer
 {
     unsafe {
         SSC_secureZero(

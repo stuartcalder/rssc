@@ -15,20 +15,28 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+use crate::c::BitFlag8;
 
 #[link(name = "SSC")]
 extern "C" {
-    fn SSC_printBytes(
+    fn SSC_printBytesMode(
         mem:  *const cty::c_void,
-        size: cty::size_t
+        size: cty::size_t,
+        mode: BitFlag8
     ) -> ();
 }
 
-pub fn print_bytes(bytes: &[u8]) -> () {
+pub const MODE_HEX: u8     = 0x01u8; // Print bytes in hexadecimal.
+pub const MODE_BIN: u8     = 0x02u8; // Print bytes in binary.
+pub const MODE_PREFIX: u8  = 0x04u8; // Print the "prefix". i.e. 0x or 0b.
+pub const MODE_NEWLINE: u8 = 0x08u8; // Print a newline after the formatted output.
+
+pub fn print_bytes(bytes: &[u8], mode: BitFlag8) -> () {
     unsafe {
-        SSC_printBytes(
+        SSC_printBytesMode(
             bytes.as_ptr() as *const _ as *const cty::c_void,
-            bytes.len()
+            bytes.len(),
+            mode
         )
     }
 }
